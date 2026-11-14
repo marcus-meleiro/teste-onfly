@@ -81,7 +81,37 @@ Para cada teste que falhava no `pytest -q`, li a mensagem de erro e a docstring 
 
 ## Como validar
 
-<!-- a preencher -->
+Na pasta `onfly-desafio/`:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+```
+
+1. **Testes fornecidos** (sem alteração):
+   ```bash
+   pytest -q
+   ```
+   Esperado: `5 passed`.
+
+2. **Amostra de validação** (comparar com a tabela do `README.md`):
+   ```bash
+   PYTHONPATH=src python -m onfly_report \
+     --input data/exemplo-validacao.csv \
+     --rates data/taxas_cambio.csv \
+     --output output/exemplo.json
+   ```
+   Esperado: `Reservas: 12 | Confirmadas: 9 | Noites: 28 | Total BRL: 7566.00`, com `average_nightly_rate_brl` = `270.21` e `by_month`/`top_hotels` iguais às tabelas do README.
+
+3. **Dataset completo:**
+   ```bash
+   PYTHONPATH=src python -m onfly_report \
+     --input data/reservas_hoteis.csv \
+     --rates data/taxas_cambio.csv \
+     --output output/report.json
+   ```
+   Esperado: `Reservas: 300 | Confirmadas: 235 | Noites: 1347 | Total BRL: 396170.00`, com `average_nightly_rate_brl` = `294.11`.
 
 ## Resultado do pytest
 
