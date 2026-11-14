@@ -15,7 +15,22 @@
 - **Causa raiz:** a função subtraía só o dia do mês (`checkout.day - checkin.day`), ignorando a virada de mês/ano.
 - **Correção:** `(checkout - checkin).days * rooms`, fórmula do README.
 
+### 3. Regra de status faturável
+- **Arquivo:** `src/onfly_report/services/status_policy.py`
+- **Sintoma:** `tests/test_status_rules.py:20` falhava com `assert '120.00' == '100.00'` (100 CONFIRMED + 50 CANCELLED + 20 NO_SHOW).
+- **Causa raiz:** `is_billable` usava `status != "CANCELLED"`, então `NO_SHOW` entrava nos totais.
+- **Correção:** `status == "CONFIRMED"`, conforme a regra do README ("Só `CONFIRMED` é faturável").
+
+### 4. Ordenação do ranking de hotéis
+- **Arquivo:** `src/onfly_report/services/report_builder.py`
+- **Sintoma:** `tests/test_top_hotels.py:18` falhava com `['H04', 'H03', 'H02'] == ['H01', 'H02', 'H03']`.
+- **Causa raiz:** a chave de ordenação `(amount, hotel_id)` ordenava o valor em ordem crescente, colocando os hotéis de menor valor primeiro.
+- **Correção:** chave `(-amount, hotel_id)`: valor decrescente e desempate por `hotel_id` crescente.
+
 ## Como investiguei
+
+### Abordagem geral
+Para cada teste que falhava no `pytest -q`, li a mensagem de erro e a docstring do teste, localizei em `src/onfly_report/services/` a função responsável por aquele cálculo e comparei o comportamento dela com as regras de negócio do `README.md`. Corrigi um defeito por vez e rodei os testes de novo depois de cada correção.
 
 ### Câmbio
 1. Rodei `pytest -q` e o `test_currency_conversion_to_brl` falhou: esperado `642.00`, obtido `118.45`.
@@ -34,10 +49,26 @@
    A subtração de datas inteiras dá 3 dias, mas o código subtraía só o dia do mês: `2 - 30 = -28`, ignorando a troca de mês.
 4. Usei a fórmula do README (`(checkout_date - checkin_date).days * rooms`) com os nomes de variáveis da função, e o teste passou.
 
+### Status
+1. O `test_status_rules_exclude_cancelled_and_no_show` falhou: as contagens por status estavam certas, mas `total_amount_brl` deu `120.00` em vez de `100.00`.
+2. A diferença de 20.00 é exatamente o valor da reserva `NO_SHOW`, o que indicou que ela estava entrando nos totais.
+3. Em `services/status_policy.py`, a função `is_billable` retornava `status != "CANCELLED"`, deixando passar qualquer status diferente de cancelado, inclusive `NO_SHOW`.
+4. O README diz que só `CONFIRMED` é faturável, então troquei para `status == "CONFIRMED"`.
+
+### Ranking de hotéis
+1. O `test_top_hotels_are_ranked_descending` falhou: o ranking veio na ordem inversa (`H04, H03, H02`).
+2. Em `report_builder.py`, o `sorted` usava a chave `(item[1]["amount"], item[0])`, ou seja, ordem crescente de valor.
+3. O README pede `total_brl` decrescente com desempate por `hotel_id` **ascendente**. Usar `reverse=True` inverteria a tupla inteira e deixaria o desempate decrescente também.
+4. Por isso neguei só o primeiro item da tupla, `(-item[1]["amount"], item[0])`, invertendo o valor e mantendo o desempate crescente.
+
 ## Como validar
 
 <!-- a preencher -->
 
 ## Resultado do pytest
 
-<!-- a preencher -->
+```
+$ pytest -q
+.....                                                                    [100%]
+5 passed in 0.51s
+```
