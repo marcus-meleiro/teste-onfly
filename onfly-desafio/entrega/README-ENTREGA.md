@@ -27,6 +27,12 @@
 - **Causa raiz:** a chave de ordenação `(amount, hotel_id)` ordenava o valor em ordem crescente, colocando os hotéis de menor valor primeiro.
 - **Correção:** chave `(-amount, hotel_id)`: valor decrescente e desempate por `hotel_id` crescente.
 
+### 5. Leitura limitada a 200 reservas
+- **Arquivo:** `src/onfly_report/repositories/csv_reservation_repository.py`
+- **Sintoma:** o CLI no dataset real mostrava `Reservas: 200`, mas `data/reservas_hoteis.csv` tem 300 reservas. Nenhum teste fornecido pegava isso, porque os testes usam poucas linhas.
+- **Causa raiz:** o loop de leitura tinha um `if len(rows) == 200: break` que interrompia a leitura do CSV.
+- **Correção:** removi a condição de parada; o `for values in reader` já termina no fim do arquivo.
+
 ## Como investiguei
 
 ### Abordagem geral
@@ -60,6 +66,18 @@ Para cada teste que falhava no `pytest -q`, li a mensagem de erro e a docstring 
 2. Em `report_builder.py`, o `sorted` usava a chave `(item[1]["amount"], item[0])`, ou seja, ordem crescente de valor.
 3. O README pede `total_brl` decrescente com desempate por `hotel_id` **ascendente**. Usar `reverse=True` inverteria a tupla inteira e deixaria o desempate decrescente também.
 4. Por isso neguei só o primeiro item da tupla, `(-item[1]["amount"], item[0])`, invertendo o valor e mantendo o desempate crescente.
+
+### Limite de 200 reservas
+1. Com os 5 testes passando, rodei o CLI no dataset real:
+   ```
+   Reservas: 200 | Confirmadas: 153 | Noites: 909 | Total BRL: 249543.79
+   ```
+2. O arquivo `data/reservas_hoteis.csv` tem 300 reservas (301 linhas com o cabeçalho), então 100 estavam sendo ignoradas.
+3. Em `repositories/csv_reservation_repository.py`, o loop de leitura tinha `if len(rows) == 200: break`.
+4. Removi a condição inteira em vez de trocar o número, porque o relatório precisa ler o arquivo todo, qualquer que seja o tamanho. Resultado depois da correção:
+   ```
+   Reservas: 300 | Confirmadas: 235 | Noites: 1347 | Total BRL: 396170.00
+   ```
 
 ## Como validar
 
